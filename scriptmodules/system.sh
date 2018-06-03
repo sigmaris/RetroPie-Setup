@@ -178,7 +178,7 @@ function get_rpi_video() {
     local pkgconfig="/opt/vc/lib/pkgconfig"
 
     # detect driver via inserted module / platform driver setup
-    if [[ -d "/sys/module/vc4" || "$FORCE_VC4_KMS" -eq 1 ]]; then
+    if [[ -d "/sys/module/vc4" || "$__force_vc4_kms" -eq 1 ]]; then
         __platform_flags+=" mesa kms"
         [[ "$(ls -A /sys/bus/platform/drivers/vc4_firmware_kms/*.firmwarekms 2>/dev/null)" ]] && __platform_flags+=" dispmanx"
     else
