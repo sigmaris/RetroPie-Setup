@@ -64,9 +64,11 @@ ensureFBMode 320 240
 
 rp_ret=0
 if [[ $# -gt 0 ]]; then
+    joy2keyStart
     setupDirectories
     rp_callModule "$@"
     rp_ret=$?
+    joy2keyStop
 else
     rp_printUsageinfo
 fi

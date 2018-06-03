@@ -47,7 +47,11 @@ function build_lr-mupen64plus() {
     rpSwap on 750
     local params=()
     if isPlatform "rpi"; then
-        params+=(platform="$__platform")
+        if isPlatform "mesa"; then
+            params+=(platform="$__platform-mesa")
+        else
+            params+=(platform="$__platform")
+        fi
     elif isPlatform "mali"; then
         params+=(platform="odroid")
     else

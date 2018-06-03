@@ -14,15 +14,24 @@ rp_module_desc="Dremcast emu - Reicast port for libretro"
 rp_module_help="ROM Extensions: .cdi .gdi\n\nCopy your Dremcast roms to $romdir/dreamcast\n\nCopy the required BIOS files dc_boot.bin and dc_flash.bin to $biosdir"
 rp_module_licence="GPL2 https://raw.githubusercontent.com/libretro/reicast-emulator/master/LICENSE"
 rp_module_section="exp"
-rp_module_flags="!arm"
+rp_module_flags=""
 
 function sources_lr-reicast() {
-    gitPullOrClone "$md_build" https://github.com/libretro/reicast-emulator.git
+    gitPullOrClone "$md_build" https://github.com/gizmo98/reicast-emulator.git patch-3
+    #sed -i 's|enable_runfast()|//enable_runfast()|g' "$md_build/core/libretro/common.cpp"
 }
 
 function build_lr-reicast() {
+    rpSwap on 1400
     make clean
-    make
+    if isPlatform "rpi"; then
+        make platform="$__platform"
+    elif isPlatform "mali"; then
+        make platform="odroid"
+    else
+        make
+    fi
+    rpSwap off
     md_ret_require="$md_build/reicast_libretro.so"
 }
 

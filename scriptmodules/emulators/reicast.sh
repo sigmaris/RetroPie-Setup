@@ -25,7 +25,7 @@ function sources_reicast() {
     if isPlatform "x11"; then
         gitPullOrClone "$md_build" https://github.com/reicast/reicast-emulator.git
     else
-        gitPullOrClone "$md_build" https://github.com/RetroPie/reicast-emulator.git retropie
+        gitPullOrClone "$md_build" https://github.com/gizmo98/reicast-emulator.git vc4-omx
     fi
     sed -i "s/CXXFLAGS += -fno-rtti -fpermissive -fno-operator-names/CXXFLAGS += -fno-rtti -fpermissive -fno-operator-names -D_GLIBCXX_USE_CXX11_ABI=0/g" shell/linux/Makefile
 }
@@ -33,8 +33,13 @@ function sources_reicast() {
 function build_reicast() {
     cd shell/linux
     if isPlatform "rpi"; then
-        make platform=rpi2 clean
-        make platform=rpi2
+        if isPlatform "kms"; then
+            make platform=rpi2mesa clean
+            make platform=rpi2mesa
+        else
+            make platform=rpi2 clean
+            make platform=rpi2
+        fi
     elif isPlatform "tinker"; then
         make USE_GLES=1 USE_SDL=1 clean
         make USE_GLES=1 USE_SDL=1
@@ -48,7 +53,11 @@ function build_reicast() {
 function install_reicast() {
     cd shell/linux
     if isPlatform "rpi"; then
-        make platform=rpi2 PREFIX="$md_inst" install
+        if isPlatform "kms"; then
+            make platform=rpi2mesa PREFIX="$md_inst" install
+        else
+            make platform=rpi2 PREFIX="$md_inst" install
+        fi
     elif isPlatform "tinker"; then
         make USE_GLES=1 USE_SDL=1 PREFIX="$md_inst" install
     else
@@ -94,8 +103,14 @@ _EOF_
     # add system
     # possible audio backends: alsa, oss, omx
     if isPlatform "rpi"; then
-        addEmulator 1 "${md_id}-audio-omx" "dreamcast" "CON:$md_inst/bin/reicast.sh omx %ROM%"
-        addEmulator 0 "${md_id}-audio-oss" "dreamcast" "CON:$md_inst/bin/reicast.sh oss %ROM%"
+        if isPlatform "kms"; then
+            addEmulator 1 "${md_id}-audio-oss" "dreamcast" "CON:$md_inst/bin/reicast.sh oss %ROM%"
+            addEmulator 0 "${md_id}-audio-alsa" "dreamcast" "CON:$md_inst/bin/reicast.sh alsa %ROM%"
+            addEmulator 0 "${md_id}-audio-omx" "dreamcast" "CON:$md_inst/bin/reicast.sh omx %ROM%"
+        else
+            addEmulator 1 "${md_id}-audio-omx" "dreamcast" "CON:$md_inst/bin/reicast.sh omx %ROM%"
+            addEmulator 0 "${md_id}-audio-oss" "dreamcast" "CON:$md_inst/bin/reicast.sh oss %ROM%"
+        fi
     else
         addEmulator 1 "$md_id" "dreamcast" "CON:$md_inst/bin/reicast.sh oss %ROM%"
     fi

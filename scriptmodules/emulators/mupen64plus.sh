@@ -14,7 +14,7 @@ rp_module_desc="N64 emulator MUPEN64Plus"
 rp_module_help="ROM Extensions: .z64 .n64 .v64\n\nCopy your N64 roms to $romdir/n64"
 rp_module_licence="GPL2 https://raw.githubusercontent.com/mupen64plus/mupen64plus-core/master/LICENSES"
 rp_module_section="main"
-rp_module_flags="!mali !kms"
+rp_module_flags="!mali"
 
 function depends_mupen64plus() {
     local depends=(cmake libsamplerate0-dev libspeexdsp-dev libsdl2-dev libpng12-dev fonts-freefont-ttf)
@@ -34,10 +34,18 @@ function sources_mupen64plus() {
     )
     if isPlatform "rpi"; then
         repos+=(
-            'gizmo98 audio-omx'
             'ricrpi video-gles2rice pandora-backport'
             'ricrpi video-gles2n64'
         )
+        if isPlatform "kms"; then
+            repos+=(
+                'mupen64plus video-glide64mk2'
+            )
+        else
+            repos+=(
+                'gizmo98 audio-omx'
+            )
+        fi
     else
         repos+=(
             'mupen64plus video-glide64mk2'
@@ -53,6 +61,9 @@ function sources_mupen64plus() {
         gitPullOrClone "$dir" https://github.com/${repo[0]}/mupen64plus-${repo[1]} ${repo[2]}
     done
     gitPullOrClone "$md_build/GLideN64" https://github.com/gonetz/GLideN64.git
+
+    # ugly fix to prevent bcmhost autodetection
+    isPlatform "kms" && sed -i 's/bcm_host.h/bcm_host.old/g' "$md_build/GLideN64/src/CMakeLists.txt"
 
     # workaround for shader cache crash issue on Raspbian stretch. See: https://github.com/gonetz/GLideN64/issues/1665
     applyPatch "$md_data/0001-GLideN64-use-emplace.patch"
@@ -70,7 +81,11 @@ function build_mupen64plus() {
         if [[ -f "$dir/projects/unix/Makefile" ]]; then
             params=()
             isPlatform "rpi1" && params+=("VFP=1" "VFP_HARD=1" "HOST_CPU=armv6")
-            isPlatform "rpi" && params+=("VC=1")
+            if isPlatform "kms"; then
+                params+=("USE_GLES=1")
+            else
+                isPlatform "rpi" && params+=("VC=1")
+            fi
             isPlatform "neon" && params+=("NEON=1")
             isPlatform "x11" && params+=("OSD=1" "PIE=1")
             isPlatform "x86" && params+=("SSE=SSE2")
@@ -87,6 +102,7 @@ function build_mupen64plus() {
     params=("-DMUPENPLUSAPI=On" "-DVEC4_OPT=On")
     isPlatform "neon" && params+=("-DNEON_OPT=On")
     isPlatform "rpi" && params+=("-DUSE_SYSTEM_LIBS=On")
+    isPlatform "kms" && params+=("-DEGL=On")
     if isPlatform "rpi3"; then 
         params+=("-DCRC_ARMV8=On")
     else
@@ -109,8 +125,12 @@ function build_mupen64plus() {
         md_ret_require+=(
             'mupen64plus-video-gles2rice/projects/unix/mupen64plus-video-rice.so'
             'mupen64plus-video-gles2n64/projects/unix/mupen64plus-video-n64.so'
-            'mupen64plus-audio-omx/projects/unix/mupen64plus-audio-omx.so'
         )
+        if isPlatform "kms"; then
+            'mupen64plus-video-glide64mk2/projects/unix/mupen64plus-video-glide64mk2.so'
+        else
+            'mupen64plus-audio-omx/projects/unix/mupen64plus-audio-omx.so'
+        fi
     else
         md_ret_require+=(
             'mupen64plus-video-glide64mk2/projects/unix/mupen64plus-video-glide64mk2.so'
@@ -130,7 +150,11 @@ function install_mupen64plus() {
             # optflags is needed due to the fact the core seems to rebuild 2 files and relink during install stage most likely due to a buggy makefile
             local params=()
             isPlatform "armv6" && params+=("VFP=1" "HOST_CPU=armv6")
-            isPlatform "rpi" && params+=("VC=1")
+            if isPlatform "kms"; then
+                params+=("USE_GLES=1")
+            else
+                isPlatform "rpi" && params+=("VC=1")
+            fi
             isPlatform "neon" && params+=("NEON=1")
             isPlatform "x86" && params+=("SSE=SSE2")
             make -C "$source/projects/unix" PREFIX="$md_inst" OPTFLAGS="$CFLAGS -O3 -flto" "${params[@]}" install
@@ -144,7 +168,12 @@ function install_mupen64plus() {
 }
 
 function configure_mupen64plus() {
-    if isPlatform "rpi"; then
+    if isPlatform "kms"; then
+        addEmulator 0 "${md_id}-GLideN64" "n64" "$md_inst/bin/mupen64plus.sh mupen64plus-video-GLideN64 %ROM% 1920x1080"
+        addEmulator 0 "${md_id}-glide64" "n64" "$md_inst/bin/mupen64plus.sh mupen64plus-video-glide64mk2 %ROM% 1920x1080"
+        addEmulator 1 "${md_id}-gles2rice" "n64" "$md_inst/bin/mupen64plus.sh mupen64plus-video-rice %ROM% 1920x1080"
+        addEmulator 0 "${md_id}-gles2n64" "n64" "$md_inst/bin/mupen64plus.sh mupen64plus-video-n64 %ROM% 1920x1080"
+    elif isPlatform "rpi"; then
         local res
         for res in "320x240" "640x480"; do
             local name=""
@@ -156,6 +185,7 @@ function configure_mupen64plus() {
         addEmulator 1 "${md_id}-auto" "n64" "$md_inst/bin/mupen64plus.sh AUTO %ROM%"
     else
         addEmulator 0 "${md_id}-GLideN64" "n64" "$md_inst/bin/mupen64plus.sh mupen64plus-video-GLideN64 %ROM%"
+        addEmulator 0 "${md_id}-GLideN64-GL3-3" "n64" "MESA_GL_VERSION_OVERRIDE=3.3COMPAT $md_inst/bin/mupen64plus.sh mupen64plus-video-GLideN64 %ROM%"
         addEmulator 1 "${md_id}-glide64" "n64" "$md_inst/bin/mupen64plus.sh mupen64plus-video-glide64mk2 %ROM%"
         if isPlatform "x86"; then
             addEmulator 0 "${md_id}-GLideN64-LLE" "n64" "$md_inst/bin/mupen64plus.sh mupen64plus-video-GLideN64 %ROM% 640x480 mupen64plus-rsp-cxd4-sse2"
@@ -195,7 +225,7 @@ function configure_mupen64plus() {
     fi
 
     # RPI GLideN64 settings
-    if isPlatform "rpi"; then
+    if isPlatform "rpi" && ! isPlatform "kms" ; then
         iniConfig " = " "" "$config"
         # Create GlideN64 section in .cfg
         if ! grep -q "\[Video-GLideN64\]" "$config"; then

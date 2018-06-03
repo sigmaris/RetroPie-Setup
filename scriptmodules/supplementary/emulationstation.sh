@@ -130,6 +130,7 @@ function depends_emulationstation() {
     )
 
     isPlatform "x11" && depends+=(gnome-terminal)
+    isPlatform "kms" && depends+=(libgles1-mesa-dev libgles2-mesa-dev)
     getDepends "${depends[@]}"
 }
 
@@ -143,7 +144,13 @@ function sources_emulationstation() {
 
 function build_emulationstation() {
     rpSwap on 1000
-    cmake . -DFREETYPE_INCLUDE_DIRS=/usr/include/freetype2/
+    # ugly fix to build against GLES2. CMakeList.txt should have a switch like -DGLES2 to enable this.
+    # kms on desktop should use desktop GL instead. Add platform flag gles2?
+    if isPlatform "kms"; then
+        cmake . -DFREETYPE_INCLUDE_DIRS=/usr/include/freetype2/ -DGLES=On
+    else
+        cmake . -DFREETYPE_INCLUDE_DIRS=/usr/include/freetype2/
+    fi
     make clean
     make
     rpSwap off
@@ -198,11 +205,6 @@ function install_launch_emulationstation() {
 
 if [[ \$(id -u) -eq 0 ]]; then
     echo "emulationstation should not be run as root. If you used 'sudo emulationstation' please run without sudo."
-    exit 1
-fi
-
-if [[ -d "/sys/module/vc4" ]]; then
-    echo -e "ERROR: You have the experimental desktop GL driver enabled. This is NOT compatible with RetroPie, and Emulation Station as well as emulators will fail to launch.\\n\\nPlease disable the experimental desktop GL driver from the raspi-config 'Advanced Options' menu."
     exit 1
 fi
 

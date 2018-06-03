@@ -16,9 +16,13 @@ rp_module_section="core"
 
 function depends_retroarch() {
     local depends=(libudev-dev libxkbcommon-dev libsdl2-dev libasound2-dev libusb-1.0-0-dev)
-    isPlatform "rpi" && depends+=(libraspberrypi-dev)
     isPlatform "mali" && depends+=(mali-fbdev)
     isPlatform "x11" && depends+=(libx11-xcb-dev libpulse-dev libvulkan-dev)
+    if isPlatform "kms"; then 
+        depends+=(libgbm-dev libdrm-dev libgl1-mesa-dev libegl1-mesa-dev libgles2-mesa-dev)
+    else
+        isPlatform "rpi" && depends+=(libraspberrypi-dev)
+    fi
 
     if compareVersions "$__os_debian_ver" ge 9; then
         depends+=(libavcodec-dev libavformat-dev libavdevice-dev)
@@ -50,9 +54,13 @@ function build_retroarch() {
         params+=(--disable-ffmpeg)
     fi
     isPlatform "gles" && params+=(--enable-opengles)
-    isPlatform "rpi" && params+=(--enable-dispmanx)
+    if isPlatform "kms"; then 
+        params+=(--enable-kms --enable-egl --disable-videocore --enable-plain_drm)
+        isPlatform "rpi" && params+=(--disable-opengles3)
+    else
+        isPlatform "rpi" && params+=(--enable-dispmanx)
+    fi
     isPlatform "mali" && params+=(--enable-mali_fbdev)
-    isPlatform "kms" && params+=(--enable-kms)
     isPlatform "arm" && params+=(--enable-floathard)
     isPlatform "neon" && params+=(--enable-neon)
     isPlatform "x11" && params+=(--enable-vulkan)
@@ -75,7 +83,11 @@ function update_shaders_retroarch() {
     isPlatform "rpi" && branch="rpi"
     # remove if not git repository for fresh checkout
     [[ ! -d "$dir/.git" ]] && rm -rf "$dir"
-    gitPullOrClone "$dir" https://github.com/RetroPie/common-shaders.git "$branch"
+    if isPlatform "kms"; then
+        gitPullOrClone "$dir" https://github.com/libretro/glsl-shaders.git
+    else
+        gitPullOrClone "$dir" https://github.com/RetroPie/common-shaders.git "$branch"
+    fi
     chown -R $user:$user "$dir"
 }
 

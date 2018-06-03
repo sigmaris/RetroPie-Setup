@@ -33,7 +33,11 @@ function build_lr-parallel-n64() {
     make clean
     local params=()
     if isPlatform "rpi" || isPlatform "odroid-c1"; then
-        params+=(platform="$__platform")
+        if isPlatform "mesa"; then
+            params+=(platform="$__platform-mesa")
+        else
+            params+=(platform="$__platform")
+        fi
     elif isPlatform "tinker"; then
         params+=(platform="kms")
         params+=("CPUFLAGS=-DNO_ASM -DARM -D__arm__ -DARM_ASM -D__NEON_OPT -DNOSSE")
