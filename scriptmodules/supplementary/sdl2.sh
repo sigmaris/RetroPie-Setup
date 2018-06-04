@@ -22,6 +22,7 @@ function get_ver_sdl2() {
 function get_pkg_ver_sdl2() {
     local ver="$(get_ver_sdl2)+1"
     isPlatform "rpi" && ver+="rpi"
+    isPlatform "kms" && ver+="kms"
     isPlatform "mali" && ver+="mali"
     echo "$ver"
 }
