@@ -23,9 +23,7 @@ function setup_env() {
     __has_binaries=0
 
     get_platform
-
     get_os_version
-    get_default_gcc
     get_retropie_depends
 
     __gcc_version=$(gcc -dumpversion)
