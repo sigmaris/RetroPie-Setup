@@ -66,6 +66,7 @@ DISPMANX_CONF="$CONFIGDIR/all/dispmanx.cfg"
 RETRONETPLAY_CONF="$CONFIGDIR/all/retronetplay.cfg"
 
 TVSERVICE="/opt/vc/bin/tvservice"
+DRI_CARD0="/dev/dri/card0"
 
 source "$ROOTDIR/lib/inifuncs.sh"
 
@@ -96,7 +97,19 @@ function get_config() {
         [[ -z "$IMAGE_DELAY" ]] && IMAGE_DELAY=2
     fi
 
-    if [[ -f "$TVSERVICE" ]]; then
+    local fkms=(/sys/firmware/devicetree/base/soc/firmwarekms@*/status)
+    local fkms_status="disabled"
+    if [[ ${#fkms[@]} -gt 0 ]]; then
+        fkms_status="$(tr -d '\0' <${fkms[0]})"
+    fi
+
+    if [[ -c "$DRI_CARD0" && "$fkms_status" != "okay" ]]; then
+        HAS_KMS=1
+    else
+        HAS_KMS=0
+    fi
+
+    if [[ -f "$TVSERVICE" && "$HAS_KMS" -eq 0 ]]; then
         HAS_TVS=1
     else
         HAS_TVS=0
