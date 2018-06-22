@@ -376,7 +376,7 @@ function load_mode_defaults() {
     fi
 
     # default retroarch render res to config file
-    RENDER_RES="config"
+    RENDER_RES="autodetect"
 
     local mode
     if [[ -f "$VIDEO_CONF" ]]; then
@@ -661,9 +661,11 @@ function choose_render_res() {
     options+=(
         O "Use video output resolution"
         C "Use config file resolution"
+        A "Autodetect from MAME data"
     )
     [[ "$default" == "output" ]] && default="O"
     [[ "$default" == "config" ]] && default="C"
+    [[ "$default" == "autodetect" ]] && default="A"
     local cmd=(dialog --default-item "$default" --menu "Choose RetroArch render resolution" 22 76 16 )
     local choice=$("${cmd[@]}" "${options[@]}" 2>&1 >/dev/tty)
     [[ -z "$choice" ]] && return
@@ -673,6 +675,9 @@ function choose_render_res() {
             ;;
         C)
             choice="config"
+            ;;
+        A)
+            choice="autodetect"
             ;;
         *)
             choice="${res[$choice-1]}"
@@ -808,10 +813,22 @@ function retroarch_append_config() {
     local dim
     # if our render resolution is "config", then we don't set anything (use the value in the retroarch.cfg)
     if [[ "$RENDER_RES" != "config" ]]; then
-        if [[ "$RENDER_RES" == "output" ]]; then
-            dim=(0 0)
+        if [[ "$RENDER_RES" == "autodetect" && "$SYSTEM" =~ (arcade|mame|fba|neogeo) ]]; then
+            local best_mode
+            local gamename=$(basename "$ROM" .zip)
+            # Try and autodetect from MAME database
+            if [[ -f "$ROOTDIR/supplementary/runcommand/getmode.py" ]]; then
+                best_mode=($($ROOTDIR/supplementary/runcommand/getmode.py "${gamename}"))
+                if [[ ${#best_mode[@]} -gt 1 ]]; then
+                    dim=(${best_mode[0]} ${best_mode[1]})
+                fi
+            fi
         else
-            dim=(${RENDER_RES/x/ })
+            if [[ "$RENDER_RES" == "output" ]]; then
+                dim=(0 0)
+            else
+                dim=(${RENDER_RES/x/ })
+            fi
         fi
         echo "video_fullscreen_x = ${dim[0]}" >>"$conf"
         echo "video_fullscreen_y = ${dim[1]}" >>"$conf"
