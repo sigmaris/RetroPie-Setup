@@ -22,12 +22,20 @@ function depends_runcommand() {
     local depends=()
     isPlatform "rpi" && depends+=(fbi)
     isPlatform "x11" && depends+=(feh)
+    isPlatform "kms" && depends+=(libdrm-dev gcc)
     getDepends "${depends[@]}"
 }
 
 function install_bin_runcommand() {
     cp "$md_data/runcommand.sh" "$md_inst/"
     cp "$md_data/joy2key.py" "$md_inst/"
+    if isPlatform "kms" && [[ -f "/opt/mamevideo.db" ]]; then
+        gcc -g -o "$md_inst/listmodes" "$md_data/listmodes.c" $(pkg-config --cflags --libs libdrm)
+        cp /opt/mamevideo.db "$md_inst/"
+        cp "$md_data/getmode.py" "$md_inst/"
+        chmod a+x "$md_inst/getmode.py"
+        chmod a+x "$md_inst/listmodes"
+    fi
     chmod a+x "$md_inst/runcommand.sh"
     chmod a+x "$md_inst/joy2key.py"
     python -m compileall "$md_inst/joy2key.py"

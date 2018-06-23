@@ -813,14 +813,23 @@ function retroarch_append_config() {
     local dim
     # if our render resolution is "config", then we don't set anything (use the value in the retroarch.cfg)
     if [[ "$RENDER_RES" != "config" ]]; then
-        if [[ "$RENDER_RES" == "autodetect" && "$SYSTEM" =~ (arcade|mame|fba|neogeo) ]]; then
+        if [[ "$RENDER_RES" == "autodetect" && "$HAS_KMS" -eq 1 && "$SYSTEM" =~ (arcade|mame|fba|neogeo) ]]; then
             local best_mode
-            local gamename=$(basename "$ROM" .zip)
             # Try and autodetect from MAME database
             if [[ -f "$ROOTDIR/supplementary/runcommand/getmode.py" ]]; then
-                best_mode=($($ROOTDIR/supplementary/runcommand/getmode.py "${gamename}"))
-                if [[ ${#best_mode[@]} -gt 1 ]]; then
-                    dim=(${best_mode[0]} ${best_mode[1]})
+                best_mode=($($ROOTDIR/supplementary/runcommand/getmode.py "${ROM_BN}"))
+                if [[ ${#best_mode[@]} -eq 6 ]]; then
+                    echo "video_fullscreen = true" >>"$conf"
+                    echo "video_fullscreen_x = ${best_mode[0]}" >>"$conf"
+                    echo "video_fullscreen_y = ${best_mode[1]}" >>"$conf"
+                    echo "video_refresh_rate = ${best_mode[3]}" >>"$conf"
+                    echo "video_aspect_ratio = ${best_mode[5]}" >>"$conf"
+                    echo "aspect_ratio_index = 19" >>"$conf"
+                    if [[ ${best_mode[4]} -gt 0 ]]; then
+                        # Vertical games need scaled
+                        echo "video_smooth = true" >>"$conf"
+                        echo "video_scale_integer = false" >>"$conf"
+                    fi
                 fi
             fi
         else
@@ -829,9 +838,10 @@ function retroarch_append_config() {
             else
                 dim=(${RENDER_RES/x/ })
             fi
+            echo "video_fullscreen = true" >>"$conf"
+            echo "video_fullscreen_x = ${dim[0]}" >>"$conf"
+            echo "video_fullscreen_y = ${dim[1]}" >>"$conf"
         fi
-        echo "video_fullscreen_x = ${dim[0]}" >>"$conf"
-        echo "video_fullscreen_y = ${dim[1]}" >>"$conf"
     fi
 
     # if the ROM has a custom configuration then append that too
